@@ -42,6 +42,14 @@ document.querySelector('#btn-login').addEventListener('click', () => {
     if (clienteEncontrado) {
         usuarioLogado = clienteEncontrado;
         loginErro.style.display = 'none';
+
+        // Gravando cookies para identificação do dispositivo
+        const primeiroNome = clienteEncontrado.nome.split(' ')[0];
+        const agora = new Date().toLocaleString('pt-BR');
+        salvarCookie('senac_cpf', clienteEncontrado.cpf, 30);
+        salvarCookie('senac_nome', primeiroNome, 30);
+        salvarCookie('senac_ultimo_acesso', agora, 30);
+
         secaoLogin.style.display = 'none';
         secaoPainel.style.display = 'block';
 
@@ -74,4 +82,123 @@ document.querySelector('#btn-transferir').addEventListener('click', () => { });
 
 document.querySelector('#btn-sair').addEventListener('click', () => {
     location.reload();
+});
+
+// 8. Salvar rascunho do cadastro em tempo real (localStorage)
+const formCadastro = document.querySelector('#form-cadastro');
+if (formCadastro) {
+    formCadastro.addEventListener('input', () => {
+        const dadosRascunho = {
+            dados: {
+                nome: document.querySelector('#cad-nome').value,
+                cpf: document.querySelector('#cad-cpf').value,
+                email: document.querySelector('#cad-email').value,
+                celular: document.querySelector('#cad-celular').value,
+                cep: document.querySelector('#cad-cep').value,
+                endereco: document.querySelector('#cad-endereco').value,
+                cidade: document.querySelector('#cad-cidade').value,
+                estado: document.querySelector('#cad-estado').value
+            },
+            timestamp: new Date().getTime()
+        };
+        localStorage.setItem('senac_rascunho_cadastro', JSON.stringify(dadosRascunho));
+    });
+}
+
+// 9. Recuperar rascunho ao carregar a página
+document.addEventListener('DOMContentLoaded', () => {
+    const rascunhoSalvo = localStorage.getItem('senac_rascunho_cadastro');
+    if (rascunhoSalvo) {
+        const rascunho = JSON.parse(rascunhoSalvo);
+        const d = rascunho.dados;
+        document.querySelector('#cad-nome').value = d.nome || '';
+        document.querySelector('#cad-cpf').value = d.cpf || '';
+        document.querySelector('#cad-email').value = d.email || '';
+        document.querySelector('#cad-celular').value = d.celular || '';
+        document.querySelector('#cad-cep').value = d.cep || '';
+        document.querySelector('#cad-endereco').value = d.endereco || '';
+        document.querySelector('#cad-cidade').value = d.cidade || '';
+        document.querySelector('#cad-estado').value = d.estado || '';
+        console.log("Rascunho de cadastro recuperado com sucesso!");
+    }
+});
+
+// 10. Limpeza ao submeter o formulário com sucesso
+if (formCadastro) {
+    formCadastro.addEventListener('submit', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('senac_rascunho_cadastro');
+        formCadastro.reset();
+        secaoCadastro.style.display = 'none';
+        secaoSucesso.style.display = 'block';
+    });
+}
+
+// 11. Botão de descarte manual do rascunho
+const btnLimparRascunho = document.querySelector('#link-limpar-rascunho');
+if (btnLimparRascunho) {
+    btnLimparRascunho.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (confirm('Deseja realmente descartar o rascunho do cadastro?')) {
+            localStorage.removeItem('senac_rascunho_cadastro');
+            formCadastro.reset();
+        }
+    });
+}
+
+// Funções auxiliares de cookies (salvar, ler, apagar)
+function salvarCookie(nome, valor, dias) {
+    const d = new Date();
+    d.setTime(d.getTime() + (dias * 24 * 60 * 60 * 1000));
+    let expires = "expires=" + d.toUTCString();
+    document.cookie = nome + "=" + encodeURIComponent(valor) + ";" + expires + ";path=/";
+}
+
+function lerCookie(nome) {
+    let nameEQ = nome + "=";
+    let ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+    }
+    return null;
+}
+
+function apagarCookie(nome) {
+    document.cookie = nome + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+}
+
+// 13. Leitura de cookies na inicialização da página
+function verificarReconhecimento() {
+    const cpfSalvo = lerCookie('senac_cpf');
+    const nomeSalvo = lerCookie('senac_nome');
+    const ultimoAcesso = lerCookie('senac_ultimo_acesso');
+    const subtitulo = document.querySelector('#login-section .subtitle');
+
+    if (cpfSalvo && nomeSalvo) {
+        document.querySelector('#input-cpf').value = cpfSalvo;
+        subtitulo.innerHTML = `Que bom ter você de volta, <strong>${nomeSalvo}</strong>!<br>
+            <small style="color: #6c757d;">Último acesso: ${ultimoAcesso}</small><br>
+            <a href="#" id="link-trocar-usuario" style="font-size: 0.75rem; color: #0056b3; font-weight: bold;">
+                Não é você? Trocar de conta
+            </a>`;
+
+        document.querySelector('#input-senha').focus();
+
+        document.querySelector('#link-trocar-usuario').addEventListener('click', (e) => {
+            e.preventDefault();
+            apagarCookie('senac_cpf');
+            apagarCookie('senac_nome');
+            apagarCookie('senac_ultimo_acesso');
+            document.querySelector('#input-cpf').value = '';
+            document.querySelector('#input-senha').value = '';
+            subtitulo.textContent = 'Portal do Cliente';
+            document.querySelector('#input-cpf').focus();
+        });
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    verificarReconhecimento();
 });
